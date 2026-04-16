@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metadata Pipeline - Research Demo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon"></div>
+                <h2>MetaFlow</h2>
+            </div>
+            <p class="subtitle">Automated Data Engineering Pipeline</p>
+            
+            <nav class="scenario-nav">
+                <h3>Evaluation Scenarios</h3>
+                <button class="nav-btn active" data-scenario="1">1. Add Column (Low Risk)</button>
+                <button class="nav-btn" data-scenario="2">2. Rename Field (Medium Risk)</button>
+                <button class="nav-btn" data-scenario="3">3. Change DataType (High Risk)</button>
+                <button class="nav-btn" data-scenario="4">4. Missing Values (Validation Failed)</button>
+                <button class="nav-btn custom-upload-btn" data-scenario="5">5. Custom Data Upload</button>
+            </nav>
+
+            <div id="upload-panel" class="upload-panel hidden">
+                <p class="upload-hint">Upload a CSV or JSON file to analyze it for schema drift against your active registry.</p>
+                <input type="file" id="custom-file-input" accept=".csv,.json" />
+            </div>
+
+            <button id="run-sim-btn" class="primary-btn">▶ Run Simulation</button>
+            <div id="loader" class="loader hidden"></div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header>
+                <h1 id="scenario-title">Scenario 1: Add a Column</h1>
+            </header>
+            
+            <div class="dashboard-grid">
+                <!-- Metrics Bar -->
+                <div class="metrics-row">
+                    <div class="metric-card">
+                        <span class="label">Detection Latency</span>
+                        <h2 id="metric-latency">-- ms</h2>
+                    </div>
+                    <div class="metric-card">
+                        <span class="label">Impact Severity</span>
+                        <h2 id="metric-severity" class="">--</h2>
+                    </div>
+                    <div class="metric-card">
+                        <span class="label">Pipelines Affected</span>
+                        <h2 id="metric-pipelines">--</h2>
+                    </div>
+                    <div class="metric-card">
+                        <span class="label">System Resolution</span>
+                        <h2 id="metric-resolution">--</h2>
+                    </div>
+                </div>
+
+                <!-- Visual Diff Area -->
+                <div class="visualizer">
+                    <div class="schema-panel">
+                        <h3>Previous Schema (v1)</h3>
+                        <div id="schema-before" class="schema-list">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <div class="diff-arrow">➔</div>
+
+                    <div class="schema-panel">
+                        <h3>Drifted Schema (v2)</h3>
+                        <div id="schema-after" class="schema-list">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Change Log output -->
+                <div class="log-panel">
+                    <h3>Raw Detection Log</h3>
+                    <pre id="log-output">Awaiting simulation...</pre>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
