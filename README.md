@@ -315,6 +315,3 @@ docker compose up --build -d
 
 ---
 
-## License
-
-MIT License — open for academic and personal use.
