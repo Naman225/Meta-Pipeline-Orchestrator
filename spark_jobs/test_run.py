@@ -1,9 +1,13 @@
 import sys
 import os
-sys.path.append("/home/naman/Desktop/Metadata")
+
+# Resolve project root dynamically — works on any machine
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.join(ROOT, "src"))
 
 from pyspark.sql import SparkSession
-from src.metadata_manager.manager import MetadataManager
+from metadata_manager.manager import MetadataManager
 from spark_jobs.pipeline_engine import PipelineEngine
 
 def main():
@@ -18,7 +22,7 @@ def main():
         .getOrCreate()
 
     print("Initializing MetadataManager...")
-    meta = MetadataManager("/home/naman/Desktop/Metadata/config/metadata_config.yaml")
+    meta = MetadataManager(os.path.join(ROOT, "config", "metadata_config.yaml"))
     
     print("Initializing PipelineEngine...")
     engine = PipelineEngine(spark, meta)
@@ -28,7 +32,7 @@ def main():
 
     print("\n--- Pipeline Run Completed ---")
     print("Let's read back the target Delta table to verify:")
-    df = spark.read.format("delta").load("/home/naman/Desktop/Metadata/datasets/clean_orders")
+    df = spark.read.format("delta").load(os.path.join(ROOT, "datasets", "clean_orders"))
     df.show()
 
 if __name__ == "__main__":

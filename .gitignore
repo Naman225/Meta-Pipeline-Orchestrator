@@ -1,5 +1,7 @@
 # ── Environment & secrets ─────────────────────────────────────────────────────
 .env
+*.pem
+*.key
 
 # ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
@@ -15,8 +17,17 @@ build/
 .venv/
 venv/
 env/
+*.pyc
 
-# ── Runtime outputs (go to metadata_logs/) ────────────────────────────────────────────
+# ── Testing & coverage ────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.xml
+*.log
+
+# ── Runtime outputs (go to metadata_logs/) ───────────────────────────────────
 metadata_logs/schemas/
 metadata_logs/schema_change_log.json
 metadata_logs/evaluation_results.json
@@ -26,6 +37,27 @@ metadata_logs/evaluation_results.json
 # ── Datasets / generated data ─────────────────────────────────────────────────
 datasets/clean_orders/
 datasets/**/*.parquet
+datasets/**/*.delta
+datasets/**/_delta_log/
+
+# ── Delta Lake artifacts ──────────────────────────────────────────────────────
+_delta_log/
+*.delta/
+spark-warehouse/
+
+# ── Spark logs & temp ─────────────────────────────────────────────────────────
+derby.log
+metastore_db/
+/tmp/
+
+# ── Docker volumes ────────────────────────────────────────────────────────────
+postgres-db-volume/
+mongodb-data-volume/
+
+# ── Empty scaffold dirs (tracked via .gitkeep, not raw folder) ───────────────
+metadata/pipeline_configs/
+metadata/rules/
+metadata/schemas/
 
 # ── Jupyter ───────────────────────────────────────────────────────────────────
 .ipynb_checkpoints/
@@ -38,7 +70,3 @@ datasets/**/*.parquet
 *.swo
 .DS_Store
 Thumbs.db
-
-# ── Docker volumes ────────────────────────────────────────────────────────────
-postgres-db-volume/
-mongodb-data-volume/
