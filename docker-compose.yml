@@ -1,5 +1,6 @@
-x-airflow-common:
-  &airflow-common
+version: "3.9"
+
+x-airflow-common: &airflow-common
   build:
     context: .
     dockerfile: Dockerfile.airflow
@@ -12,21 +13,21 @@ x-airflow-common:
     - PYTHONPATH=/opt/airflow
   volumes:
     - ./dags:/opt/airflow/dags
-    - ./src:/opt/airflow/src
+    - ./logs:/opt/airflow/logs
+    - ./plugins:/opt/airflow/plugins
     - ./config:/opt/airflow/config
-    - ./datasets:/opt/airflow/datasets
     - ./spark_jobs:/opt/airflow/spark_jobs
-    - ./schema_registry:/opt/airflow/schema_registry
-    - ./impact_analysis:/opt/airflow/impact_analysis
-    - ./change_detection:/opt/airflow/change_detection
+    - ./datasets:/opt/airflow/datasets
+    - ./src:/opt/airflow/src
     - ./metadata_logs:/opt/airflow/metadata_logs
+    - ./datasets:/opt/airflow/dataset
   depends_on:
     postgres:
       condition: service_healthy
 
 services:
 
-  # ── PostgreSQL: two databases — airflow metadata + project metadata ──────
+  # ── PostgreSQL ─────────────────────────────────────────────
   postgres:
     image: postgres:15
     environment:
@@ -37,14 +38,14 @@ services:
       - "5433:5432"
     volumes:
       - postgres-db-volume:/var/lib/postgresql/data
-      - ./init-db:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
 
-  # ── MongoDB ──────────────────────────────────────────────────────────────
+  # ── MongoDB ────────────────────────────────────────────────
   mongodb:
     image: mongo:6
     environment:
@@ -54,8 +55,9 @@ services:
       - "27019:27017"
     volumes:
       - mongodb-data-volume:/data/db
+    restart: unless-stopped
 
-  # ── Airflow Init (runs once, then exits) ─────────────────────────────────
+  # ── Airflow Init ───────────────────────────────────────────
   airflow-init:
     <<: *airflow-common
     command: >
@@ -65,39 +67,42 @@ services:
       "
     restart: "no"
 
-  # ── Airflow Webserver ────────────────────────────────────────────────────
+  # ── Airflow Webserver ──────────────────────────────────────
   airflow-webserver:
     <<: *airflow-common
     command: webserver
     ports:
-      - "8080:8080"
+      - "8085:8080"
     depends_on:
       airflow-init:
         condition: service_completed_successfully
     restart: unless-stopped
 
-  # ── Airflow Scheduler ────────────────────────────────────────────────────
+  # ── Airflow Scheduler ──────────────────────────────────────
   airflow-scheduler:
     <<: *airflow-common
     command: scheduler
+    hostname: airflow-scheduler
     depends_on:
       airflow-init:
         condition: service_completed_successfully
     restart: unless-stopped
 
-  # ── Spark Master ─────────────────────────────────────────────────────────
+  # ── Spark Master ───────────────────────────────────────────
   spark-master:
     image: apache/spark:3.4.1
     container_name: spark-master
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
     ports:
-      - "8082:8080"
-      - "7078:7077"
+      - "8086:8080"
+      - "7080:7077"
     volumes:
       - ./datasets:/opt/spark/datasets
+      - ./spark_jobs:/opt/spark/spark_jobs
+      - ./datasets:/opt/airflow/datasets
     restart: unless-stopped
 
-  # ── Spark Worker ─────────────────────────────────────────────────────────
+  # ── Spark Worker ───────────────────────────────────────────
   spark-worker:
     image: apache/spark:3.4.1
     container_name: spark-worker
@@ -106,6 +111,11 @@ services:
       - spark-master
     volumes:
       - ./datasets:/opt/spark/datasets
+      - ./spark_jobs:/opt/spark/spark_jobs
+      - ./datasets:/opt/airflow/datasets
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
     restart: unless-stopped
 
 volumes:

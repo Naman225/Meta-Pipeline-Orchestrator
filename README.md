@@ -194,8 +194,8 @@ cp .env.example .env
 docker compose up --build -d
 
 # 3. Wait ~60 seconds for Airflow to initialize, then open:
-#    Airflow UI  → http://localhost:8080  (admin / admin)
-#    Spark UI    → http://localhost:8082
+#    Airflow UI  → http://localhost:8085  (admin / admin)
+#    Spark UI    → http://localhost:8086
 
 # 4. To stop everything
 docker compose down
@@ -207,8 +207,9 @@ docker compose down
 
 | Service | URL / Port | Credentials |
 |---------|-----------|-------------|
-| Airflow Webserver | http://localhost:8080 | `admin` / `admin` |
-| Spark Master UI | http://localhost:8082 | — |
+| Airflow Webserver | http://localhost:8085 | `admin` / `admin` |
+| Spark Master UI | http://localhost:8086 | — |
+| Spark RPC | `localhost:7080` | — (internal: 7077) |
 | PostgreSQL | `localhost:5433` | See `.env` |
 | MongoDB | `localhost:27019` | See `.env` |
 
@@ -303,9 +304,9 @@ Common fix: wait 60–90 seconds after `docker compose up`. PostgreSQL health-ch
 ### Port already in use
 Check which service is on port 8080:
 ```bash
-sudo lsof -i :8080
+sudo lsof -i :8085
 ```
-Airflow webserver uses `8080`, Spark UI uses `8082`, Postgres uses `5433`.
+Airflow webserver uses `8085`, Spark UI uses `8086`, Postgres uses `5433`.
 
 ### Clean reset
 ```bash
