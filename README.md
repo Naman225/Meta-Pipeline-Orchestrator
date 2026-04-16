@@ -1,7 +1,7 @@
 # Meta-Pipeline-Orchestrator
 
 > **Automated Metadata-Driven Data Engineering Pipeline**  
-> Schema drift detection · Lineage-based impact analysis · Self-healing orchestration
+> Schema drift detection · Lineage-based impact analysis · **Autonomous Schema Evolution** · **Interactive Research Dashboard**
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://python.org)
 [![Apache Airflow](https://img.shields.io/badge/Apache%20Airflow-2.10-017CEE?logo=apache-airflow&logoColor=white)](https://airflow.apache.org)
@@ -34,10 +34,31 @@ Builds a lineage graph of ALL downstream dependencies
 Calculates a risk score based on depth + breadth of impact
         ↓
 Makes an automated decision:
-  LOW risk   → Auto-update metadata, continue
-  MEDIUM risk → Flag for review, proceed with caution
-  HIGH risk  → Pause pipeline, raise alert
+  LOW risk   → **Autonomous Adjustment**: Auto-update metadata, continue workflow
+  MEDIUM risk → **Flagged Evolution**: Raise warning, user review while proceeding
+  HIGH risk  → **Circuit Break**: Pause pipeline, trigger alert to prevent data corruption
 ```
+
+---
+
+## 🚀 New: Interactive Research Dashboard
+
+To visualize the system's decision-making in real-time, we provide a sleek, dark-mode dashboard. This allows you to simulate and observe the pipeline's autonomous behavior without digging into raw logs.
+
+**Features:**
+- **Visual Schema Diffs**: Real-time highlighting of added (Green), removed (Red), or modified (Yellow) columns.
+- **Custom Dataset Analytics**: Upload any CSV/JSON file to test how the system onboard new sources and detects drift autonomously.
+- **Latency & Risk Monitoring**: Live dials showing detection performance (< 5ms) and risk scores.
+
+### Running the Dashboard
+```bash
+# Install additional dependencies
+pip install fastapi uvicorn pandas python-multipart
+
+# Start the dashboard server
+python3 api.py
+```
+View at: **http://localhost:8000**
 
 ---
 
@@ -146,6 +167,8 @@ Meta-Pipeline-Orchestrator/
 ├── metadata_logs/
 │   └── .gitkeep                    ← Runtime log dir (schemas + change_log)
 │
+├── api.py                          ← FastAPI backend for Research Dashboard
+├── dashboard/                      ← Web UI assets (HTML, CSS, JS)
 ├── demo_script.py                  ← Run all 5 evaluation scenarios end-to-end
 ├── simulate_schema_drift.py        ← Targeted drift + orchestration demo
 ├── docker-compose.yml              ← Full stack: Airflow + Spark + Postgres + Mongo
