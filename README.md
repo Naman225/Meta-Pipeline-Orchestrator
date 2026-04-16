@@ -1,124 +1,156 @@
-# AutoMeta — Automated Metadata for Data Engineering Workflows
+# Meta-Pipeline-Orchestrator
 
-> A research project demonstrating fully automated schema change detection, downstream impact analysis, and orchestration-driven self-healing for metadata-driven data pipelines.
+> **Automated Metadata-Driven Data Engineering Pipeline**  
+> Schema drift detection · Lineage-based impact analysis · Self-healing orchestration
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)](https://python.org)
-[![Apache Airflow](https://img.shields.io/badge/Apache%20Airflow-2.10-017CEE?logo=apache-airflow)](https://airflow.apache.org)
-[![Apache Spark](https://img.shields.io/badge/Apache%20Spark-3.4.1-E25A1C?logo=apache-spark)](https://spark.apache.org)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://python.org)
+[![Apache Airflow](https://img.shields.io/badge/Apache%20Airflow-2.10-017CEE?logo=apache-airflow&logoColor=white)](https://airflow.apache.org)
+[![Apache Spark](https://img.shields.io/badge/Apache%20Spark-3.4.1-E25A1C?logo=apache-spark&logoColor=white)](https://spark.apache.org)
 [![Delta Lake](https://img.shields.io/badge/Delta%20Lake-2.4-00ADD8)](https://delta.io)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791?logo=postgresql)](https://postgresql.org)
-[![MongoDB](https://img.shields.io/badge/MongoDB-6-47A248?logo=mongodb)](https://mongodb.com)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)](https://docker.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791?logo=postgresql&logoColor=white)](https://postgresql.org)
+[![MongoDB](https://img.shields.io/badge/MongoDB-6-47A248?logo=mongodb&logoColor=white)](https://mongodb.com)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://docker.com)
+[![Tests](https://img.shields.io/badge/Tests-38%20passed-brightgreen)](./tests/)
 
 ---
 
-## Overview
+## The Problem
 
-Modern data engineering teams spend **30–40% of their time** on pipeline maintenance triggered by upstream schema changes — a new column, a renamed field, a type regression. These changes are rarely detected automatically and almost never traced to their downstream impact before breakage occurs.
+In every real-world data engineering team, someone upstream changes a database column — renames it, changes its type, or adds a new field. Nobody tells the downstream team. The pipeline silently breaks. Hours are wasted debugging. Dashboards show wrong numbers.
 
-**AutoMeta** solves this by building a metadata-driven layer on top of Apache Airflow and Spark:
-
-| Problem | AutoMeta Solution |
-|---------|-----------------|
-| Schema changes go undetected | Schema Registry automatically versions and diffs every source |
-| Unknown downstream impact | Lineage Graph (NetworkX DAG) traverses all downstream dependencies |
-| Manual triage and fixes | Orchestration layer auto-resolves LOW risk, flags MEDIUM, pauses HIGH |
-| Slow pipeline onboarding | DAGs generated dynamically from config — no code changes needed |
+This project builds a system that **catches those changes automatically**, figures out every downstream table or pipeline that would be affected, and takes the right action — all without human intervention.
 
 ---
 
-## Architecture
+## What This System Does
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      Airflow (Orchestration Layer)                       │
-│          dag_factory.py — dynamically generates DAGs from metadata       │
-└──────────────────────────┬──────────────────────────────────────────────┘
-                           │
-           ┌───────────────▼───────────────┐
-           │    PipelineEngine (Spark)      │
-           │  spark_jobs/pipeline_engine.py │
-           └───────────────┬───────────────┘
-                           │
-     ┌─────────────────────▼───────────────────────┐
-     │               Metadata Manager               │
-     │        src/metadata_manager/manager.py        │
-     │   PostgreSQL • MongoDB • File-based (dev)     │
-     └──────────┬──────────────────────┬────────────┘
-                │                      │
-   ┌────────────▼─────────┐  ┌─────────▼──────────────┐
-   │   Schema Registry    │  │    Impact Analyzer       │
-   │  schema_registry/    │  │  impact_analysis/        │
-   │  registry.py         │  │  lineage_graph.py        │
-   │  • register schema   │─▶│  • NetworkX DiGraph      │
-   │  • detect drift      │  │  • BFS traversal         │
-   │  • log changes       │  │  • risk scoring          │
-   └──────────────────────┘  └────────────────────────┘
-                │
-   ┌────────────▼──────────────┐
-   │  Change Detection Engine   │
-   │  change_detection/         │
-   │  detector.py               │
-   │  • null checks             │
-   │  • type consistency        │
-   └───────────────────────────┘
+Data Source changes schema
+        ↓
+System detects the drift automatically (< 3ms)
+        ↓
+Builds a lineage graph of ALL downstream dependencies
+        ↓
+Calculates a risk score based on depth + breadth of impact
+        ↓
+Makes an automated decision:
+  LOW risk   → Auto-update metadata, continue
+  MEDIUM risk → Flag for review, proceed with caution
+  HIGH risk  → Pause pipeline, raise alert
 ```
 
-**Risk Score Formula:** `risk = num_downstream_tables × max_depth`
+---
 
-| Severity | Threshold | Orchestration Action |
-|----------|-----------|---------------------|
-| 🟢 LOW | `risk ≤ 2` | AUTO-UPDATE metadata, continue pipeline |
-| 🟡 MEDIUM | `2 < risk ≤ 5` | FLAG for manual review, log warning |
-| 🔴 HIGH | `risk > 5` | PAUSE pipeline, send alert |
+## System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    AIRFLOW ORCHESTRATION LAYER                   │
+│              dag_factory.py — metadata-driven DAGs               │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │  submits jobs to
+          ┌────────────────▼─────────────────┐
+          │         SPARK CLUSTER             │
+          │     pipeline_engine.py            │
+          │  runs config-driven transforms    │
+          └────────────────┬─────────────────┘
+                           │  reads/writes via
+     ┌─────────────────────▼──────────────────────┐
+     │              METADATA MANAGER               │
+     │           src/metadata_manager/             │
+     │  • loads pipeline configs from YAML         │
+     │  • stores schema versions (file / Postgres) │
+     │  • writes append-only change audit log      │
+     │  • provides lineage edges to analyzer       │
+     └────────────┬──────────────────┬────────────┘
+                  │                  │
+   ┌──────────────▼────┐   ┌─────────▼──────────────┐
+   │  SCHEMA REGISTRY  │   │    IMPACT ANALYZER      │
+   │  registry.py      │   │    lineage_graph.py     │
+   │                   │──▶│                         │
+   │  • infer schema   │   │  • builds NetworkX DAG  │
+   │  • version it     │   │  • BFS traversal        │
+   │  • diff old/new   │   │  • computes risk score  │
+   │  • log changes    │   │  • returns severity     │
+   └──────────┬────────┘   └─────────────────────────┘
+              │
+   ┌──────────▼───────────────┐
+   │  VALIDATION DETECTOR     │
+   │  change_detection/       │
+   │  detector.py             │
+   │  • NOT_NULL checks       │
+   │  • TYPE_CONSISTENCY      │
+   └──────────────────────────┘
+```
+
+---
+
+## Risk Scoring Engine
+
+Every schema change is scored using a simple but powerful formula:
+
+```
+Risk Score = Number of Impacted Downstream Tables × Maximum Lineage Depth
+```
+
+| Score | Severity | Automated Action |
+|-------|----------|-----------------|
+| ≤ 2 | 🟢 LOW | Auto-update metadata → pipeline continues normally |
+| 3–5 | 🟡 MEDIUM | Flag for review → pipeline continues cautiously |
+| > 5 | 🔴 HIGH | Pause pipeline → alert raised immediately |
+
+**Example:** If changing `total_price` impacts `clean_orders → feature_orders → ml_input → dashboard` (4 tables, depth 4), the risk score is **16 → HIGH → PAUSE & ALERT**.
 
 ---
 
 ## Project Structure
 
 ```
-AutoMeta/
-├── config/                         # Pipeline & system configuration
-│   ├── metadata_config.yaml        # MetadataManager config
-│   └── orders_pipeline.yaml        # Example pipeline definition
+Meta-Pipeline-Orchestrator/
 │
-├── dags/                           # Airflow DAG layer
-│   └── dag_factory.py              # Dynamic DAG generator (metadata-driven)
-│
-├── datasets/                       # Source datasets
-│   └── orders.csv                  # Sample TPC-H orders data
-│
-├── spark_jobs/                     # Spark execution layer
-│   └── pipeline_engine.py          # Config-driven transformation engine
-│
-├── src/                            # Core Python package
+├── src/
 │   └── metadata_manager/
-│       └── manager.py              # Central metadata hub (schemas, lineage, logs)
+│       └── manager.py              ← Central hub: schema storage, lineage, logs
 │
-├── schema_registry/                # Schema versioning & drift detection
-│   └── registry.py                 # register + detect_changes + orchestration hook
+├── schema_registry/
+│   └── registry.py                 ← Drift detector + orchestration decision hook
 │
-├── impact_analysis/                # Downstream impact evaluation
-│   └── lineage_graph.py            # NetworkX lineage graph + risk scoring
+├── impact_analysis/
+│   └── lineage_graph.py            ← NetworkX lineage graph + BFS risk scoring
 │
-├── change_detection/               # Data quality validation
-│   └── detector.py                 # Null checks + type consistency rules
+├── change_detection/
+│   └── detector.py                 ← Null & type-consistency validation rules
 │
-├── init-db/                        # PostgreSQL DDL
-│   └── init.sql                    # Tables: source_schemas, lineage, schema_change_log
+├── spark_jobs/
+│   ├── pipeline_engine.py          ← Config-driven Spark transform executor
+│   └── test_run.py                 ← Spark integration test (requires Spark)
 │
-├── tests/                          # Unit tests
+├── dags/
+│   └── dag_factory.py              ← Airflow: auto-generates DAGs from metadata
 │
-├── logs/                           # Runtime outputs (gitignored)
-│   ├── schemas/                    # Registered schema snapshots
-│   ├── schema_change_log.json      # Change event log
-│   └── evaluation_results.json     # Phase 7 evaluation results
+├── config/
+│   ├── metadata_config.yaml        ← Global system config
+│   └── orders_pipeline.yaml        ← Example pipeline: source, transforms, target
 │
-├── demo_script.py                  # Runs all 5 evaluation scenarios end-to-end
-├── simulate_schema_drift.py        # Phase 5/6 drift + orchestration demo
-├── Dockerfile.airflow              # Custom Airflow image (Java 11 + PySpark + Delta)
-├── docker-compose.yml              # Full stack: Airflow + Spark + Postgres + MongoDB
-├── .env.example                    # Environment variable template
+├── datasets/
+│   └── orders.csv                  ← Sample TPC-H–style orders data
+│
+├── init-db/
+│   └── init.sql                    ← PostgreSQL DDL for production metadata store
+│
+├── tests/                          ← 38 unit tests (no Spark/Docker needed)
+│   ├── test_schema_registry.py     ← 13 tests: register, drift detection, log
+│   ├── test_impact_analyzer.py     ← 12 tests: lineage graph, BFS, risk score
+│   └── test_validation_detector.py ← 13 tests: nulls, types, combined rules
+│
+├── metadata_logs/
+│   └── .gitkeep                    ← Runtime log dir (schemas + change_log)
+│
+├── demo_script.py                  ← Run all 5 evaluation scenarios end-to-end
+├── simulate_schema_drift.py        ← Targeted drift + orchestration demo
+├── docker-compose.yml              ← Full stack: Airflow + Spark + Postgres + Mongo
+├── Dockerfile.airflow              ← Custom Airflow image (Java 11 + PySpark + Delta)
+├── .env.example                    ← Template for environment secrets
 └── README.md
 ```
 
@@ -126,74 +158,89 @@ AutoMeta/
 
 ## Quick Start
 
-### Prerequisites
+### Option A — Run the Demo (No Docker, No Spark)
 
-- [Docker](https://docs.docker.com/get-docker/) & Docker Compose v2+
-- Python 3.10+ (for running the demo script locally)
-
-### 1. Clone & Configure
+This runs all 5 evaluation scenarios and prints the results table. Only needs `networkx` and `pyyaml`.
 
 ```bash
-git clone https://github.com/<your-username>/autometa.git
-cd autometa
+git clone https://github.com/Naman225/Meta-Pipeline-Orchestrator.git
+cd Meta-Pipeline-Orchestrator
 
-# Copy the environment template and fill in your values
-cp .env.example .env
-```
-
-> **Note:** The default `.env.example` values work out-of-the-box for local development. Change passwords before any public deployment.
-
-### 2. Start the Full Stack
-
-```bash
-docker compose up --build -d
-```
-
-This starts:
-
-| Service | URL | Description |
-|---------|-----|-------------|
-| Airflow Webserver | http://localhost:8080 | DAG UI — login `admin / admin` |
-| Spark Master | http://localhost:8081 | Spark cluster UI |
-| PostgreSQL | `localhost:5432` | Metadata + Airflow DB |
-| MongoDB | `localhost:27017` | Document store |
-
-### 3. Run the Evaluation Demo (no Docker required)
-
-```bash
+# Install minimal dependencies
 pip install networkx pyyaml
+
+# Run the full evaluation suite
 python3 demo_script.py
+
+# Run the focused drift + orchestration demo
+python3 simulate_schema_drift.py
 ```
 
-Expected output: all 5 evaluation scenarios with a formatted results table.
+### Option B — Run the Unit Tests
+
+```bash
+pip install pytest
+python3 -m pytest tests/ -v
+# Expected: 38 passed
+```
+
+### Option C — Full Stack with Docker
+
+```bash
+# 1. Set up environment
+cp .env.example .env
+
+# 2. Build and start all services
+docker compose up --build -d
+
+# 3. Wait ~60 seconds for Airflow to initialize, then open:
+#    Airflow UI  → http://localhost:8080  (admin / admin)
+#    Spark UI    → http://localhost:8082
+
+# 4. To stop everything
+docker compose down
+```
 
 ---
 
-## Evaluation Scenarios (Phase 7)
+## Services & Ports
 
-Run `python3 demo_script.py` to reproduce all results. Results are saved to `logs/evaluation_results.json`.
-
-| # | Scenario | Detection Latency | Pipelines Affected | Severity | Action |
-|---|----------|------------------|--------------------|----------|--------|
-| 1 | Add a column | ~2 ms | 4 | 🔴 HIGH | PAUSE & ALERT |
-| 2 | Rename a field | ~0.5 ms | 4 | 🔴 HIGH | PAUSE & ALERT |
-| 3 | Change a data type | ~0.5 ms | 4 | 🔴 HIGH | PAUSE & ALERT |
-| 4 | Introduce missing values | ~0 ms | 1 | 🟡 MEDIUM | FLAG |
-| 5 | Add a new data source | ~0.1 ms | 0 | 🟢 LOW | AUTO-UPDATE |
-
-**Key result:** Automated detection and impact analysis completes in **< 3 ms** vs **30+ minutes** manually.
+| Service | URL / Port | Credentials |
+|---------|-----------|-------------|
+| Airflow Webserver | http://localhost:8080 | `admin` / `admin` |
+| Spark Master UI | http://localhost:8082 | — |
+| PostgreSQL | `localhost:5433` | See `.env` |
+| MongoDB | `localhost:27019` | See `.env` |
 
 ---
 
-## Configuration
+## Evaluation Results
 
-### Pipeline Configuration (`config/<pipeline_name>.yaml`)
+Run `python3 demo_script.py` to reproduce all results locally.
+
+| # | Scenario | Latency | Pipelines Affected | Severity | Action |
+|---|----------|:-------:|:-----------------:|----------|--------|
+| 1 | Add a column | 2.2 ms | 4 | 🔴 HIGH | PAUSE & ALERT |
+| 2 | Rename a field | 0.4 ms | 4 | 🔴 HIGH | PAUSE & ALERT |
+| 3 | Change a data type | 0.3 ms | 4 | 🔴 HIGH | PAUSE & ALERT |
+| 4 | Introduce missing values | < 1 ms | 1 | 🟡 MEDIUM | FLAG |
+| 5 | Onboard a new data source | 0.1 ms | 0 | 🟢 LOW | AUTO-UPDATE |
+
+**Key finding:** Automated detection + impact analysis completes in **< 3 ms** compared to a manual baseline of **~30 minutes** per source.
+
+---
+
+## How a Pipeline is Defined
+
+The system is **metadata-driven** — adding a new pipeline requires only a YAML file. No Python or DAG code changes needed.
 
 ```yaml
+# config/orders_pipeline.yaml
 source:
   path: "/opt/airflow/datasets/orders.csv"
 target:
   path: "/opt/airflow/datasets/clean_orders"
+
 transformations:
   - type: rename_column
     from: "o_orderkey"
@@ -203,58 +250,71 @@ transformations:
     to: "double"
   - type: drop_nulls
     columns: ["o_totalprice"]
+
 validation_rules:
   - "totalprice > 0"
 ```
 
-Adding a new pipeline requires only a new YAML file — no DAG code changes.
-
-### Environment Variables (`.env`)
-
-| Variable | Description |
-|----------|-------------|
-| `AIRFLOW_FERNET_KEY` | Airflow encryption key (generate with `cryptography.fernet`) |
-| `AIRFLOW_WEBSERVER_SECRET_KEY` | Airflow webserver session key |
-| `POSTGRES_USER / PASSWORD / DB` | PostgreSQL credentials |
-| `MONGO_ROOT_USERNAME / PASSWORD` | MongoDB credentials |
-| `SPARK_MASTER_URL` | Spark master connection URL |
-
----
-
-## Troubleshooting
-
-### Airflow Init Fails
-```bash
-docker logs metadata-airflow-init-1
-```
-Common causes:
-- **openlineage version conflict** → Already fixed by pinning `apache-airflow-providers-openlineage>=1.8.0` in `Dockerfile.airflow`
-- **DB not ready** → Postgres healthcheck retries 10× with 5s delay; increase if needed
-
-### Docker Permission Denied on `compose down`
-If containers were started as root:
-```bash
-sudo docker rm -f $(sudo docker ps -aq)
-docker compose up -d
-```
+`dag_factory.py` reads all active pipeline configs and auto-generates the corresponding Airflow DAGs at scheduler startup.
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Orchestration | Apache Airflow 2.10 |
-| Processing | Apache Spark 3.4.1 |
-| Storage Format | Delta Lake 2.4 |
-| Relational Store | PostgreSQL 15 |
-| Document Store | MongoDB 6 |
-| Graph Library | NetworkX |
-| Containerisation | Docker Compose |
-| Language | Python 3.10+ |
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| Orchestration | Apache Airflow 2.10 | DAG scheduling and monitoring |
+| Processing | Apache Spark 3.4.1 | Distributed data transformation |
+| Storage Format | Delta Lake 2.4 | ACID-compliant data lake writes |
+| Relational Store | PostgreSQL 15 | Production metadata + Airflow DB |
+| Document Store | MongoDB 6 | Flexible schema document storage |
+| Graph Engine | NetworkX | Lineage graph construction + BFS |
+| Containerisation | Docker Compose | Full reproducible local environment |
+| Language | Python 3.10+ | All core logic |
+
+---
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and update values before running Docker:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Description |
+|----------|-------------|
+| `AIRFLOW_FERNET_KEY` | Encryption key — generate with `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+| `AIRFLOW_WEBSERVER_SECRET_KEY` | Session signing key — use any random 32-char string |
+| `POSTGRES_USER / PASSWORD / DB` | PostgreSQL credentials |
+| `MONGO_ROOT_USERNAME / PASSWORD` | MongoDB root credentials |
+| `SPARK_MASTER_URL` | Spark master URL (default: `spark://spark-master:7077`) |
+
+---
+
+## Troubleshooting
+
+### Airflow init takes too long or fails
+```bash
+docker compose logs airflow-init
+```
+Common fix: wait 60–90 seconds after `docker compose up`. PostgreSQL health-checks retry 10× with 5s delay.
+
+### Port already in use
+Check which service is on port 8080:
+```bash
+sudo lsof -i :8080
+```
+Airflow webserver uses `8080`, Spark UI uses `8082`, Postgres uses `5433`.
+
+### Clean reset
+```bash
+docker compose down -v   # removes containers + volumes
+docker compose up --build -d
+```
 
 ---
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+MIT License — open for academic and personal use.
