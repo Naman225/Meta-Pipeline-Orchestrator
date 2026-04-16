@@ -1,0 +1,44 @@
+# ── Environment & secrets ─────────────────────────────────────────────────────
+.env
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.Python
+.venv/
+venv/
+env/
+
+# ── Runtime outputs (go to metadata_logs/) ────────────────────────────────────────────
+metadata_logs/schemas/
+metadata_logs/schema_change_log.json
+metadata_logs/evaluation_results.json
+# Keep the metadata_logs/ directory itself tracked
+!metadata_logs/.gitkeep
+
+# ── Datasets / generated data ─────────────────────────────────────────────────
+datasets/clean_orders/
+datasets/**/*.parquet
+
+# ── Jupyter ───────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── IDE / OS ──────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Docker volumes ────────────────────────────────────────────────────────────
+postgres-db-volume/
+mongodb-data-volume/

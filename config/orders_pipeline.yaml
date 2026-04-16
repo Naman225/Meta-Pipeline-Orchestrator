@@ -1,0 +1,18 @@
+source:
+  path: "/opt/airflow/datasets/orders.csv"
+target:
+  path: "/opt/airflow/datasets/clean_orders"
+transformations:
+  - type: rename_column
+    from: "o_orderkey"
+    to: "order_id"
+  - type: rename_column
+    from: "o_custkey"
+    to: "customer_id"
+  - type: cast
+    column: "o_totalprice"
+    to: "double"
+  - type: drop_nulls
+    columns: ["o_totalprice"]
+validation_rules:
+  - "totalprice > 0"
